@@ -125,6 +125,7 @@ Video.propTypes = {
   ref: PropTypes.string,
   source: PropTypes.object,
   resizeMode: PropTypes.string,
+  showControls: PropTypes.bool,
   repeat: PropTypes.bool,
   paused: PropTypes.bool,
   muted: PropTypes.bool,
