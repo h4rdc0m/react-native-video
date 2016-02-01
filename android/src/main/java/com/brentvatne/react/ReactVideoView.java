@@ -1,8 +1,17 @@
 package com.brentvatne.react;
 
+import android.app.Activity;
+import android.graphics.Color;
 import android.media.MediaPlayer;
 import android.os.Handler;
+import android.util.DisplayMetrics;
 import android.util.Log;
+import android.view.MotionEvent;
+import android.view.ViewGroup;
+import android.view.ViewTreeObserver;
+import android.view.WindowManager;
+import android.widget.MediaController;
+
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.WritableMap;
 import com.facebook.react.uimanager.ThemedReactContext;
@@ -11,7 +20,7 @@ import com.yqritc.scalablevideoview.ScalableType;
 import com.yqritc.scalablevideoview.ScalableVideoView;
 
 public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnPreparedListener, MediaPlayer
-        .OnErrorListener, MediaPlayer.OnBufferingUpdateListener, MediaPlayer.OnCompletionListener {
+        .OnErrorListener, MediaPlayer.OnBufferingUpdateListener, MediaPlayer.OnCompletionListener, MediaController.MediaPlayerControl {
 
     public enum Events {
         EVENT_LOAD_START("onVideoLoadStart"),
@@ -51,9 +60,10 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
     private ThemedReactContext mThemedReactContext;
     private RCTEventEmitter mEventEmitter;
-
+    private ReactVideoMediaController mController;
     private Handler mProgressUpdateHandler = new Handler();
     private Runnable mProgressUpdateRunnable = null;
+    private Handler handler = new Handler();
 
     private String mSrcUriString = null;
     private String mSrcType = "mp4";
@@ -64,14 +74,22 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
     private boolean mMuted = false;
     private float mVolume = 1.0f;
     private float mRate = 1.0f;
+    private boolean showControls = false;
+
+
+    private Activity mActivity;
 
     private boolean mMediaPlayerValid = false; // True if mMediaPlayer is in prepared, started, or paused state.
     private int mVideoDuration = 0;
     private int mVideoBufferedDuration = 0;
 
-    public ReactVideoView(ThemedReactContext themedReactContext) {
-        super(themedReactContext);
+    private void fullScreenListener() {
 
+    }
+
+    public ReactVideoView(ThemedReactContext themedReactContext, Activity activity) {
+        super(themedReactContext);
+        mActivity = activity;
         mThemedReactContext = themedReactContext;
         mEventEmitter = themedReactContext.getJSModule(RCTEventEmitter.class);
 
@@ -104,7 +122,17 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
             mMediaPlayer.setOnPreparedListener(this);
             mMediaPlayer.setOnBufferingUpdateListener(this);
             mMediaPlayer.setOnCompletionListener(this);
+
+            mController = new ReactVideoMediaController(mThemedReactContext);
         }
+    }
+
+    public boolean onTouchEvent(MotionEvent event) {
+        if (showControls) {
+            mController.show();
+        }
+
+        return false;
     }
 
     public void setSrc(final String uriString, final String type, final boolean isNetwork) {
@@ -159,6 +187,7 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
         if (mMediaPlayerValid) {
             setLooping(repeat);
+            start();
         }
     }
 
@@ -213,8 +242,13 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         setRepeatModifier(mRepeat);
         setPausedModifier(mPaused);
         setMutedModifier(mMuted);
+
 //        setRateModifier(mRate);
     }
+    public void setControlsEnabled(boolean controlsEnabled) {
+        showControls = controlsEnabled;
+    }
+
 
     @Override
     public void onPrepared(MediaPlayer mp) {
@@ -232,6 +266,52 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
         event.putBoolean(EVENT_PROP_FAST_FORWARD, true);
         event.putBoolean(EVENT_PROP_STEP_BACKWARD, true);
         event.putBoolean(EVENT_PROP_STEP_FORWARD, true);
+
+        mController.setMediaPlayer(this);
+        mController.setAnchorView(this);
+
+        this.getViewTreeObserver().addOnScrollChangedListener(new ViewTreeObserver.OnScrollChangedListener() {
+            @Override
+            public void onScrollChanged() {
+                mController.hide();
+            }
+        });
+        final int windowHeight = this.getRootView().getMeasuredHeight();
+        final int windowWidth = this.getRootView().getMeasuredWidth();
+        mController.setListener(new ReactVideoMediaController.OnMediaControllerInteractionListener() {
+            @Override
+            public void onRequestFullScreen() {
+                mActivity.getWindow().setFlags(WindowManager.LayoutParams.FLAG_FULLSCREEN, WindowManager.LayoutParams.FLAG_FULLSCREEN);
+//                mActivity.getActionBar().hide();//getSupportActionBar().hide();
+                setBackgroundColor(Color.BLACK);
+
+                DisplayMetrics displayMetrics = new DisplayMetrics();
+                mActivity.getWindowManager().getDefaultDisplay().getMetrics(displayMetrics);
+
+                ViewGroup.LayoutParams videoLayoutParams = getLayoutParams();
+                videoLayoutParams.width = displayMetrics.widthPixels;
+                videoLayoutParams.height = displayMetrics.heightPixels;
+
+                ViewGroup.LayoutParams videoParams = getLayoutParams();
+                videoParams.width = displayMetrics.widthPixels;
+                videoParams.height = displayMetrics.heightPixels;
+
+                setLayoutParams(videoParams);
+
+
+            }
+        });
+        handler.post(new Runnable() {
+
+            public void run() {
+                mController.setEnabled(showControls);
+
+                if (showControls) {
+                    mController.show();
+                }
+
+            }
+        });
         mEventEmitter.receiveEvent(getId(), Events.EVENT_LOAD.toString(), event);
 
         applyModifiers();
@@ -264,6 +344,31 @@ public class ReactVideoView extends ScalableVideoView implements MediaPlayer.OnP
 
             super.seekTo(msec);
         }
+    }
+
+    @Override
+    public int getBufferPercentage() {
+        return 0;
+    }
+
+    @Override
+    public boolean canPause() {
+        return true;
+    }
+
+    @Override
+    public boolean canSeekBackward() {
+        return true;
+    }
+
+    @Override
+    public boolean canSeekForward() {
+        return true;
+    }
+
+    @Override
+    public int getAudioSessionId() {
+        return 0;
     }
 
     @Override

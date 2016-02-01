@@ -1,5 +1,7 @@
 package com.brentvatne.react;
 
+import android.app.Activity;
+
 import com.brentvatne.react.ReactVideoView.Events;
 import com.facebook.react.bridge.Arguments;
 import com.facebook.react.bridge.ReadableMap;
@@ -29,15 +31,22 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     public static final String PROP_VOLUME = "volume";
     public static final String PROP_SEEK = "seek";
     public static final String PROP_RATE = "rate";
+    public static final String PROP_SHOW_CONTROLS = "showControls";
+
+    private Activity mActivity;
 
     @Override
     public String getName() {
         return REACT_CLASS;
     }
 
+    public ReactVideoViewManager(Activity activity) {
+        mActivity = activity;
+    }
+
     @Override
     protected ReactVideoView createViewInstance(ThemedReactContext themedReactContext) {
-        return new ReactVideoView(themedReactContext);
+        return new ReactVideoView(themedReactContext, mActivity);
     }
 
     @Override
@@ -103,5 +112,9 @@ public class ReactVideoViewManager extends SimpleViewManager<ReactVideoView> {
     @ReactProp(name = PROP_RATE)
     public void setRate(final ReactVideoView videoView, final float rate) {
         videoView.setRateModifier(rate);
+    }
+    @ReactProp(name = PROP_SHOW_CONTROLS)
+    public void setControls(final ReactVideoView videoView, final boolean showControls) {
+        videoView.setControlsEnabled(showControls);
     }
 }

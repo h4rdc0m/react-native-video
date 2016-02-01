@@ -11,7 +11,13 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+
 public class ReactVideoPackage implements ReactPackage {
+    private Activity mActivity;
+
+    public ReactVideoPackage(Activity activity) {
+        mActivity = activity;
+    }
 
     @Override
     public List<NativeModule> createNativeModules(ReactApplicationContext reactContext) {
@@ -25,6 +31,6 @@ public class ReactVideoPackage implements ReactPackage {
 
     @Override
     public List<ViewManager> createViewManagers(ReactApplicationContext reactContext) {
-        return Arrays.<ViewManager>asList(new ReactVideoViewManager());
+        return Arrays.<ViewManager>asList(new ReactVideoViewManager(mActivity));
     }
 }
